@@ -1,0 +1,365 @@
+
+/* OS/2 Developer Magazine, Issue : Spring 93, page : 103-112 */
+/* Article title : Using Name Lookup Resolution in SOM       */
+/* Author : Nurcan Coskun                                   */
+
+/* ---------------------Begin Figure 1------------------------------------ */
+
+/* Figure 1 : Class definition and implementation files for <NamedObject1> */
+
+/* Class Definition File(namedo1.csc) */
+
+include <somobj.sc>
+
+class:
+  NamedObject1;
+
+parent:
+  SOMObject;
+
+data:
+  char nameÕ32þ;
+
+methods:
+
+  void  setName(char *name);
+  char *getName();
+/* ----------------------------------------------------------------------- */
+/* Class Implementation File(namedo1.c) */
+
+#define NamedObject1_Class_Source
+#include "namedo1.ih"
+
+SOM_Scope void   SOMLINK setName(NamedObject1 *somSelf,
+                char *name)
+{
+    NamedObject1Data *somThis = NamedObject1GetData(somSelf);
+    strcpy(_name, name);
+}
+
+SOM_Scope char *  SOMLINK getName(NamedObject1 *somSelf)
+{
+    NamedObject1Data *somThis = NamedObject1GetData(somSelf);
+    return _name;
+}
+
+/* -------------------End Figure 1---------------------------------------- */
+
+/* -------------------Begin Figure 2-------------------------------------- */
+
+/* Figure 2 :Class definition and implementation files for <FormatObject1> */
+
+/* Class Definition File(formato1.csc) */
+
+include <somobj.sc>
+
+class:
+  FormatObject1;
+
+parent:
+  SOMObject;
+
+methods:
+
+  void formatName(char *text, char *buffer);
+  -- Formats an ascii data stream.
+
+/* ----------------------------------------------------------------------- */
+
+/* Class Implementation File(formato1.c) */
+
+#define FormatObject1_Class_Source
+#include "formato1.ih"
+#include <ctype.h>
+
+SOM_Scope void   SOMLINK formatName(FormatObject1 *somSelf,
+                char *text, char *buffer)
+{
+    int i;
+    /* Convert the text to upper case */
+    for(i=0; i<strlen(text); i++){
+      bufferÕiþ = toupper(textÕiþ);
+    }
+    bufferÕiþ = '\0';
+}
+
+/* -----------------------End Figure 2------------------------------------ */
+
+/* -----------------------Begin Figure 3 --------------------------------- */
+
+/* Figure 3 : Class definition and implementation files for <PrintObject> */
+
+/* Class Definition File(printo.csc) */
+
+include <somobj.sc>
+
+class:
+  PrintObject;
+
+parent:
+  SOMObject;
+
+passthru: C.h, after;
+  #include "formato1.h"
+  #include "namedo1.h"
+endpassthru;
+
+data:
+  FormatObject1 *formatter;
+
+methods:
+
+  override somInit;
+  void     printData(NamedObject1 *object);
+
+/* ---------------------------------------------------------------- */
+
+/* Class Implementation File(printo.c) */
+
+#define PrintObject_Class_Source
+#include "printo.ih"
+
+SOM_Scope void   SOMLINK somInit(PrintObject *somSelf)
+{
+    PrintObjectData *somThis = PrintObjectGetData(somSelf);
+    _formatter = FormatObject1New();
+    parent_somInit(somSelf);
+}
+
+SOM_Scope void   SOMLINK printData(PrintObject *somSelf,
+                NamedObject1 *object)
+{
+    PrintObjectData *somThis = PrintObjectGetData(somSelf);
+    char *data;
+    char  bufferÕ32þ;
+    data = _getName(object);
+    _formatName(_formatter, data, buffer);
+    printf("Formatted form for <%s> is <%s>\n", data, buffer);
+}
+
+
+/* ------------------End Figure 3---------------------------------------- */
+
+/* ----------------Begin Figure 4---------------------------------------- */
+
+/* Figure 4 :Class def. and imp. files for <PrintObjectImproved> */
+
+/* Class Definition File(printoi.csc) */
+
+include <somobj.sc>
+
+class:
+  PrintObjectImproved;
+
+parent:
+  SOMObject;
+
+data:
+  SOMObject *formatter;
+
+methods:
+
+  override   somInit;
+
+  void       setFormatter(SOMObject *formatter);
+  -- Parameter 'formatter' must support a method with
+  -- this signature:
+  --   typedef void formatDataTD (SOMObject *, char *, char *);
+
+  SOMObject *getFormatter();
+
+  void       printObjectData(SOMObject *object,
+                       char *getDataMethodName, char *formatDataMethodName);
+  -- Parameter 'object' must support a method with this
+  -- signature:
+  --   typedef char * getDataTD (SOMObject *);
+
+/* ----------------------------------------------------------------------- */
+
+/* Class Implementation File(printoi.c) */
+
+#define PrintObjectImproved_Class_Source
+#include "printoi.ih"
+
+typedef char * getDataTD (SOMObject *);
+typedef void   formatDataTD (SOMObject *, char *, char *);
+
+SOM_Scope void   SOMLINK somInit(PrintObjectImproved *somSelf)
+{
+    PrintObjectImprovedData *somThis = PrintObjectImprovedGetData(somSelf);
+    _formatter = NULL;
+    parent_somInit(somSelf);
+}
+
+SOM_Scope void   SOMLINK setFormatter(PrintObjectImproved *somSelf,
+                SOMObject *formatter)
+{
+    PrintObjectImprovedData *somThis = PrintObjectImprovedGetData(somSelf);
+    _formatter = formatter;
+}
+
+SOM_Scope SOMObject *  SOMLINK getFormatter(PrintObjectImproved *somSelf)
+{
+    PrintObjectImprovedData *somThis = PrintObjectImprovedGetData(somSelf);
+    return (_formatter);
+}
+
+SOM_Scope void   SOMLINK printObjectData(PrintObjectImproved *somSelf,
+                SOMObject *object,
+                char *getDataMethodName,
+                char *formatDataMethodName)
+{
+    PrintObjectImprovedData *somThis = PrintObjectImprovedGetData(somSelf);
+    char *data;
+    char  bufferÕ32þ;
+    somId methodId;
+    somMethodProc *m;
+
+    methodId = somIdFromString(getDataMethodName);
+    _somFindMethodOk(SOM_GetClass(object), methodId, &m);
+    data = ((getDataTD *)m) (object);
+
+    methodId = somIdFromString(formatDataMethodName);
+    _somFindMethodOk(SOM_GetClass(_formatter), methodId, &m);
+    ((formatDataTD *)m) (_formatter, data, buffer);
+
+    printf("Formatted form for <%s> is <%s>\n", data, buffer);
+
+}
+/* ------------------End Figure 4----------------------------------------- */
+
+/* -----------------Begin Figure 5---------------------------------------- */
+
+/* Figure 5 : Class definition and implementation files for <NamedObject2> */
+
+/* Class Definition File(namedo2.csc) */
+
+include <somobj.sc>
+
+class:
+  NamedObject2;
+
+parent:
+  SOMObject;
+
+data:
+  char objectDataÕ32þ;
+
+methods:
+
+  void  setObjectData(char *objectData);
+  char *getObjectData();
+
+/* ----------------------------------------------------------------------- */
+
+/* Class Implementation File(namedo2.c) */
+
+#define NamedObject2_Class_Source
+#include "namedo2.ih"
+
+SOM_Scope void   SOMLINK setObjectData(NamedObject2 *somSelf,
+                char *objectData)
+{
+    NamedObject2Data *somThis = NamedObject2GetData(somSelf);
+    strcpy(_objectData, objectData);
+}
+
+SOM_Scope char *  SOMLINK getObjectData(NamedObject2 *somSelf)
+{
+    NamedObject2Data *somThis = NamedObject2GetData(somSelf);
+    return (_objectData);
+}
+
+/* --------------------End Figure 5--------------------------------------- */
+
+/* ------------------Begin Figure 6---------------------------------------- */
+
+Figure 6 : Class definition and implementation files for <FormatObject2>
+
+/* Class Definition File(formato2.csc) */
+
+include <somobj.sc>
+
+class:
+  FormatObject2;
+
+parent:
+  SOMObject;
+
+methods:
+
+  void formatObjectData(char *text, char *buffer);
+  -- Format ascii data stream.
+
+/* -------------------------------------------------------------------- */
+
+/* Class Implementation File(formato2.c) */
+
+#define FormatObject2_Class_Source
+#include "formato2.ih"
+#include <ctype.h>
+
+SOM_Scope void   SOMLINK formatObjectData(FormatObject2 *somSelf,
+                char *text, char *buffer)
+{
+    int i;
+    /* Convert the text to lower case */
+    for(i=0; i<strlen(text); i++){
+      bufferÕiþ = tolower(textÕiþ);
+    }
+    bufferÕiþ = '\0';
+}
+
+/* --------------------End Figure 6--------------------------------------- */
+
+/* --------------------Begin Figure 7------------------------------------- */
+
+/* Figure 7 : Client code and output. */
+
+Main  Program:
+--------------
+
+#include "namedo1.h"
+#include "formato1.h"
+#include "printo.h"
+#include "printoi.h"
+#include "namedo2.h"
+#include "formato2.h"
+
+void main(){
+  NamedObject1 *namedo1 = NamedObject1New();
+  FormatObject1 *formato1 = FormatObject1New();
+  PrintObject *printo = PrintObjectNew();
+  PrintObjectImproved *printoi = PrintObjectImprovedNew();
+  NamedObject2 *namedo2 = NamedObject2New();
+  FormatObject2 *formato2 = FormatObject2New();
+
+  /* <PrintObject> objects can only be used with */
+  /* <NamedObject1> and <FormatObject1> objects  */
+  _setName(namedo1, "Object Data One");
+  _printData(printo, namedo1);
+
+  /* use <PrintObjectImproved> objects with      */
+  /* <NamedObject1> and <FormatObject1> objects  */
+  _setName(namedo1, "Object Data Two");
+  _setFormatter(printoi, formato1);
+  _printObjectData(printoi, namedo1, "getName", "formatName");
+
+  /* use <PrintObjectImproved> objects with      */
+  /* <NamedObject2> and <FormatObject2> objects  */
+  _setObjectData(namedo2, "Object Data Three");
+  _setFormatter(printoi, formato2);
+  _printObjectData(printoi, namedo2, "getObjectData", "formatObjectData");
+
+}
+
+Output:
+-------
+Formatted form for <Object Data One> is <OBJECT DATA ONE>
+Formatted form for <Object Data Two> is <OBJECT DATA TWO>
+Formatted form for <Object Data Three> is <object data three>
+
+/* ------------------End Figure 7--------------------------------------- */
+
+
+
