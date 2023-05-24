@@ -16,3 +16,4 @@ Nurcan Coskun
 LINKS
 ===============
 * http://www.edm2.com/index.php/Nurcan_Coskun
+* https://archive.org/details/Readme_20181018/OS2DevMag-V5N2/page/102/mode/2up
